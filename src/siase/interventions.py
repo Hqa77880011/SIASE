@@ -94,10 +94,20 @@ def nuisance(clip):
 def quality(original, altered, box, lpips_model, device, fps):
     mse = float(np.mean((original - altered) ** 2))
     psnr = float(-10 * np.log10(max(mse, 1e-12)))
-    x = torch.from_numpy(original).permute(0, 3, 1, 2).to(device) * 2 - 1
-    y = torch.from_numpy(altered).permute(0, 3, 1, 2).to(device) * 2 - 1
-    with torch.no_grad():
-        perceptual = float(lpips_model(x, y).mean())
+    if lpips_model is None:
+        differences = []
+        for sigma in (0.0, 1.0, 2.0):
+            left = original if sigma == 0 else np.stack([cv2.GaussianBlur(frame, (0, 0), sigma) for frame in original])
+            right = altered if sigma == 0 else np.stack([cv2.GaussianBlur(frame, (0, 0), sigma) for frame in altered])
+            differences.append(float(np.mean(np.abs(left - right))))
+        perceptual = float(np.mean(differences))
+        perceptual_key = "fixed_multiscale_l1"
+    else:
+        x = torch.from_numpy(original).permute(0, 3, 1, 2).to(device) * 2 - 1
+        y = torch.from_numpy(altered).permute(0, 3, 1, 2).to(device) * 2 - 1
+        with torch.no_grad():
+            perceptual = float(lpips_model(x, y).mean())
+        perceptual_key = "lpips"
     bits = 0
     blur = []
     face_quality = []
@@ -116,7 +126,7 @@ def quality(original, altered, box, lpips_model, device, fps):
         face_quality.append(lap[y0:y1, x0:x1].var())
     return dict(
         psnr=psnr,
-        lpips=perceptual,
+        **{perceptual_key: perceptual},
         bitrate=bits * fps / len(altered),
         blur=np.mean(blur),
         face_quality=np.mean(face_quality),
@@ -126,7 +136,9 @@ def quality(original, altered, box, lpips_model, device, fps):
 def matched(left, right, c):
     if abs(left["psnr"] - right["psnr"]) > c["psnr_tolerance"]:
         return False
-    if abs(left["lpips"] - right["lpips"]) > c["lpips_tolerance"]:
+    key = c.get("perceptual_metric", "lpips")
+    tolerance = c["lpips_tolerance"] if key == "lpips" else c["perceptual_tolerance"]
+    if abs(left[key] - right[key]) > tolerance:
         return False
     for key in ["bitrate", "blur", "face_quality"]:
         if (

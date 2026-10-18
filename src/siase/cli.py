@@ -2,7 +2,6 @@ import argparse
 from pathlib import Path
 import numpy as np
 import torch
-import lpips
 from sklearn.linear_model import LogisticRegression
 from scipy.special import expit
 from .common import load, save, table, plot, auc, roc
@@ -27,7 +26,14 @@ def prepare(a, c):
 
 def audit(a, c):
     model = torch.jit.load(a.detector, map_location=c["device"]).eval()
-    perceptual = lpips.LPIPS(net="alex").to(c["device"]).eval()
+    perceptual_key = c.get("perceptual_metric", "lpips")
+    if perceptual_key == "lpips":
+        import lpips
+        perceptual = lpips.LPIPS(net="alex").to(c["device"]).eval()
+    elif perceptual_key == "fixed_multiscale_l1":
+        perceptual = None
+    else:
+        raise ValueError("perceptual_metric must be lpips or fixed_multiscale_l1")
     records = load(Path(a.data) / "manifest.json")
     rows = []
     pairs = []
@@ -90,7 +96,7 @@ def audit(a, c):
                 shams.append(
                     (
                         abs(tq["psnr"] - sq["psnr"])
-                        + 20 * abs(tq["lpips"] - sq["lpips"]),
+                        + 20 * abs(tq[perceptual_key] - sq[perceptual_key]),
                         support,
                         sq,
                         strength,
@@ -132,6 +138,7 @@ def audit(a, c):
         )
     save(Path(a.output) / "audits.json", rows)
     save(Path(a.output) / "pairs.json", pairs)
+    save(Path(a.output) / "audit_config.json", dict(c, detector=a.detector))
 
 
 def features(rows, variant):

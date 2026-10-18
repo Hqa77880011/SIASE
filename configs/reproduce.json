@@ -1,13 +1,13 @@
 {
   "seed": 17,
   "device": "cpu",
-  "severity": 0.3,
+  "severity": 0.08,
   "sham_strengths": [
-    0.1,
-    0.2,
-    0.3,
-    0.4,
-    0.5
+    0.02,
+    0.04,
+    0.06,
+    0.08,
+    0.1
   ],
   "psnr_tolerance": 2.0,
   "lpips_tolerance": 0.04,
@@ -16,5 +16,8 @@
   "face_quality_tolerance": 0.2,
   "error_threshold": 0.05,
   "logistic_C": 1.0,
-  "fps": 25
+  "fps": 25,
+  "input_source": "procedural_compositing_fixed_residual_detector",
+  "perceptual_metric": "fixed_multiscale_l1",
+  "perceptual_tolerance": 0.0005
 }
