@@ -45,6 +45,21 @@ Calibration fits a median/MAD-scaled logistic error predictor from margin, nuisa
 
 `audits.json`, `pairs.json`, `risk.json`, per-clip predictions and metric JSON retain the complete audit chain. Compare detector checkpoints with identical manifests, supports and tolerances. Comparison CSV/JSON and PNG/SVG plots are generated from saved measurements.
 
+## Registered compact reproduction setting
+
+One frozen detector and provenance-reviewed cue supports, fixed target/sham severity grid and the registered quality-matching tolerances. Logistic calibration is trained locally; test coverage-at-error remains a diagnostic.
+
+Run from the repository root after installation. The following commands use the registered setting; they are provided for execution and have not been run as part of the source review.
+
+```bash
+siase prepare --config configs/reproduce.json --input data/manifest.json --data data/reproduce
+siase audit --config configs/reproduce.json --data data/reproduce --detector checkpoints/detector.ts --output runs/reproduce_audit
+siase train --config configs/reproduce.json --audits runs/reproduce_audit/audits.json --output checkpoints/reproduce
+siase evaluate --config configs/reproduce.json --audits runs/reproduce_audit/audits.json --checkpoint checkpoints/reproduce/risk.json --output runs/reproduce
+```
+
+Required external inputs: identity/video-disjoint aligned clips with cue provenance, a frozen detector TorchScript and cached LPIPS weights. The formal input fields are specified above; preparation/training interfaces consume those fields directly. No particular paper dataset or pretrained task model is assumed beyond these declared inputs.
+
 ## Multiple seeds
 
 Run matched configurations with different seeds in separate directories, then aggregate the generated metric files:
